@@ -1,0 +1,371 @@
+<?php
+/**
+ * @file
+ * Module file for block_jotform.
+ */
+
+/**
+ * @defgroup block_jotform jotform: Block
+ * @ingroup jotforms
+ * @{
+ * Demonstrates code creation of blocks.
+ *
+ * This is an jotform outlining how a module can define blocks that can be
+ * displayed on various pages of a site, or how to alter blocks provided by
+ * other modules.
+ */
+/*drupal_add_js('! function($) { 
+    function tglJI()
+    {
+        $(\'.jotFeedbackWholeWrap\').toggleClass(\'open\');
+    }
+$(document).ready(function(){
+        $(\'button.jotFeedback\').on(\'click\', function(){tglJI();});
+        $(\'.jotFeedbackWholeWrap a.close\').on(\'click\', function(){tglJI();});
+$("form.jotform-form").validator().on("submit", function (e) {
+    if (e.isDefaultPrevented()) {
+        console.log("form is not valid");
+    } else {
+        e.preventDefault(); console.log("Form is valid");
+        $(this).ajaxSubmit({target: ".jotFormWidgetWrap"});
+        //$("form.jotform-form").ajaxForm({target: ".jotFormWidgetWrap"});
+        // your ajax
+    }
+     return false;
+});
+});}(jQuery);', array(
+  'type' => 'inline',
+  'scope' => 'footer',
+  'weight' => 14,
+)); */
+/**
+ * Implements hook_menu().
+ *
+ * Provides a default page to explain what this module does.
+ */
+function block_jotform_menu() {
+  $items['jotforms/block_jotform'] = array(
+    'page callback' => 'block_jotform_page',
+    'access callback' => TRUE,
+    'title' => 'Block jotform',
+  );
+  return $items;
+}
+
+/**
+ * Simple page function to explain what the block jotform is about.
+ */
+function block_jotform_page() {
+  $page = array(
+    '#type' => 'markup',
+    '#markup' => t('The Block jotform provides three sample blocks which demonstrate the various block APIs. To experiment with the blocks, enable and configure them on <a href="@url">the block admin page</a>.', array('@url' => url('admin/structure/block'))),
+  );
+  return $page;
+}
+/**
+ * Implements hook_block_info().
+ *
+ * This hook declares what blocks are provided by the module.
+ */
+function block_jotform_block_info() {
+  // This hook returns an array, each component of which is an array of block
+  // information. The array keys are the 'delta' values used in other block
+  // hooks.
+  //
+  // The required block information is a block description, which is shown
+  // to the site administrator in the list of possible blocks. You can also
+  // provide initial settings for block weight, status, etc.
+  //
+  // Many options are defined in hook_block_info():
+
+
+  // This sample shows how to provide default settings. In this case we'll
+  // enable the block in the first sidebar and make it visible only on
+  // 'node/*' pages. See the hook_block_info() documentation for these.
+  $blocks['jotform_feedback'] = array(
+    'info' => t('jotform: Feedback Button'),
+    'status' => TRUE,
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'node/*',
+  );
+
+
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ *
+ * This hook declares configuration options for blocks provided by this module.
+ */
+function block_jotform_block_configure($delta = '') {
+  $form = array();
+ 
+  if ($delta == 'jotform_feedback') {
+    // All we need to provide is the specific configuration options for our
+    // block. Drupal will take care of the standard block configuration options
+    // (block title, page visibility, etc.) and the save button.
+    $form['block_jotform_apikey'] = array(
+      '#type' => 'textfield',
+      '#title' => t('JOTForm API Key'),
+      '#size' => 60,
+      '#description' => t('Enter the api key to access JOTForm.'),
+      '#default_value' => variable_get('block_jotform_apikey', t('{yourApiKey}')),
+    );
+    $form['block_jotform_ID'] = array(
+      '#type' => 'textfield',
+      '#title' => t('JOTForm ID'),
+      '#size' => 60,
+      '#description' => t('Enter the form ID of your JOTForm.'),
+      '#default_value' => variable_get('block_jotform_ID', t('{yourFormID}')),
+    );
+    $form['block_jotform_phone'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Phone Number'),
+      '#size' => 60,
+      '#description' => t('Enter a phone number, to show next to feedback button.'),
+      '#default_value' => variable_get('block_jotform_phone', ''),
+    );
+    $form['block_jotform_prefill'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Prefill from URL'),
+      '#size' => 60,
+      '#description' => t('Enter the form element name, which you wish to be filled with the <em>last</em> url segment.<br>for eg. if you enter <i>>model</i>, if there is a field called model, will get filled by the last segment of url.'),
+      '#default_value' => variable_get('block_jotform_prefill', ''),
+    );
+    $form['block_jotform_auto_pop'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Auto popup after (milliseconds)'),
+      '#size' => 60,
+      '#description' => t('Display the popup box after <em>x</em> seconds (<em>x000</em> milliseconds)'),
+      '#default_value' => variable_get('block_jotform_auto_pop', ''),
+    );
+    $default_block_jotform_intro=variable_get('block_jotform_intro', t('{Enter the intro text OR remove this text}'));
+    $form['block_jotform_intro'] = array(
+      '#type' => 'text_format',
+      '#base_type' => 'textarea',
+      '#title' => t('Form Introduction'),
+      '#description' => t('Enter the text, to appear as introcuction.'),
+      '#format' => 'full_html',
+      '#default_value' => $default_block_jotform_intro['value'],
+    );
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ *
+ * This hook declares how the configured options for a block
+ * provided by this module are saved.
+ */
+function block_jotform_block_save($delta = '', $edit = array()) {
+  // We need to save settings from the configuration form.
+  // We need to check $delta to make sure we are saving the right block.
+  
+  if ($delta == 'jotform_feedback') {
+    // Have Drupal save the string to the database.
+    variable_set('block_jotform_apikey', $edit['block_jotform_apikey']);
+    variable_set('block_jotform_ID', $edit['block_jotform_ID']);
+    variable_set('block_jotform_intro', $edit['block_jotform_intro']);
+    variable_set('block_jotform_phone', $edit['block_jotform_phone']);;
+    variable_set('block_jotform_prefill', $edit['block_jotform_prefill']);
+    variable_set('block_jotform_auto_pop', $edit['block_jotform_auto_pop']);
+  }
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * This hook generates the contents of the blocks themselves.
+ */
+function block_jotform_block_view($delta = '') {
+  // The $delta parameter tells us which block is being requested.
+  switch ($delta) {
+   
+    case 'jotform_feedback':
+      $block['subject'] = t('Title of second block (jotform_feedback)');
+      $block['content'] = block_jotform_get_jotform();
+      break;
+
+ 
+  }
+  return $block;
+}
+//read the url using curl
+function block_jotform_getUrlContent($url){
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    $data = curl_exec($ch);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($httpcode>=200 && $httpcode<300) ? $data : false;
+    }
+//re order received data    
+    function reOrderElements($formData)
+	{
+		$retArr=[];
+		foreach($formData as $ck => $formElement)
+		{
+			$theOrderID=isset($retArr[$formElement->order])?(++$formElement->order):$formElement->order;
+			$formElement->{"q_val"} = $ck;
+			$retArr[$theOrderID]=$formElement;
+		}
+		return $retArr;
+	}
+    //get form using jotform api
+function prefillFromUrl($formData)
+  {
+    return drupal_get_query_parameters();
+      $ret=[];
+      
+      foreach($formData as $formElement)
+        {
+          $formElement->name;
+          $ret[$formElement->name]=drupal_get_query_parameters($formElement->name);      
+        }
+        return $ret;
+  }    
+function block_jotform_generate_form($jotformAPIKey, $JOTFormID)
+{
+    $rendered = 'Please enter the form ID and API key from block configuration';
+    if($JOTFormID && $jotformAPIKey)
+    {
+    $formURL = 'https://api.jotform.com/form/'.$JOTFormID.'/questions?apiKey='.$jotformAPIKey;
+    $remoteData = block_jotform_getUrlContent($formURL);
+    if($remoteData)
+    {
+    $remoteJSON = json_decode($remoteData);
+    $renderedToVar = reOrderElements($remoteJSON->content);
+    ksort($renderedToVar);
+    $rendered = $renderedToVar;//json_encode($renderedToVar);
+    }
+    else
+    {
+        return false;
+    }
+    }
+    return $rendered;
+}
+//generate the jotfrom from api
+
+function block_jotform_get_jotform()
+{
+    $jotformAPIKey =variable_get('block_jotform_apikey',
+          t('Please enter the form APIKey'
+          ));
+    $JOTFormID = variable_get('block_jotform_ID',
+          t('Please enter the form ID'
+          ));
+    $JOTFormIntro = variable_get('block_jotform_intro',
+          t(''
+         ));
+    $JOTFormPhone = variable_get('block_jotform_phone',
+          t(''
+         ));
+    $JOTFormPrefill  = variable_get('block_jotform_prefill',
+          t(''
+         ));
+     $JOTAutoPop  = variable_get('block_jotform_auto_pop',
+          t(''
+         ));
+     
+    $theFormObject = block_jotform_generate_form($jotformAPIKey, $JOTFormID);
+    
+    drupal_add_js(array('JF_JOTAutoPop' => $JOTAutoPop), 'setting');
+    
+    
+    $get = [];
+    if($theFormObject)
+    {
+    $get = prefillFromUrl($theFormObject);   
+    $lastOfURL = end(explode('/',  request_path()));
+    if($JOTFormPrefill && $lastOfURL)
+        $get[$JOTFormPrefill] = $lastOfURL;
+    drupal_add_js('https://cdnjs.cloudflare.com/ajax/libs/1000hz-bootstrap-validator/0.11.9/validator.min.js', array(
+  'type' => 'external',
+  'scope' => 'footer',
+  'weight' => 10,
+));   
+    drupal_add_js('https://cdn.jotfor.ms/static/prototype.forms.js', array(
+  'type' => 'external',
+  'scope' => 'footer',
+  'weight' => 11,
+));   
+    drupal_add_js('https://cdn.jotfor.ms/static/jotform.forms.js?3.3.7350', array(
+  'type' => 'external',
+  'scope' => 'footer',
+  'weight' => 12,
+));   
+    drupal_add_js('https://cdnjs.cloudflare.com/ajax/libs/jquery.form/4.2.2/jquery.form.min.js', array(
+  'type' => 'external',
+  'scope' => 'footer',
+  'weight' => 13,
+)); drupal_add_js(drupal_get_path('module', 'block_jotform') . '/js/jot.js', array(
+  'type' => 'file',
+  'scope' => 'footer',
+  'weight' => 13,
+)); 
+    //! function($) {$(document).ready(function(){$("form.jotform-form").ajaxForm({target: \'.jotFormWidgetWrap\'});});}(jQuery);
+   /* */
+  drupal_add_css(drupal_get_path('module', 'block_jotform') . '/css/jot.css', array('group' => CSS_DEFAULT, 'every_page' => TRUE));
+    
+    }
+    $result =  theme('block_jotform', array(
+            'block_jotform_form_id' => $JOTFormID,
+            'block_jotform_form' => $theFormObject,
+            'get' => $get,
+            'JOTFormIntro' => $JOTFormIntro,
+            'JOTFormPhone' => $JOTFormPhone,
+           ));
+    /* $result = array(
+        '#markup' => $theMarkup
+        );*/
+      
+      return $result;
+}
+/**
+ * Theme Implementaion.
+ */
+function block_jotform_theme() {
+  return array(
+    'block_jotform' => array(
+      'arguments' => array(
+        'block_jotform_form_id' => NULL,
+        'block_jotform_form' => NULL,
+        'tAndC'=>NULL,
+        'get'=>NULL,
+        'JOTFormIntro'=>NULL,
+        'JOTFormPhone' => NULL,
+      ),
+      'template' => 'block_jotform_render_form',
+    )
+  );
+}
+
+/*
+ * The following hooks can be used to alter blocks
+ * provided by your own or other modules.
+ */
+
+/**
+ * Implements hook_block_list_alter().
+ *
+ * This hook allows you to add, remove or modify blocks in the block list. The
+ * block list contains the block definitions. This jotform requires
+ * search module and the search block enabled
+ * to see how this hook implementation works.
+ *
+ * You may also be interested in hook_block_info_alter(), which allows changes
+ * to the behavior of blocks.
+ */
+
+
+
+/**
+ * @} End of "defgroup block_jotform".
+ */
